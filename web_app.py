@@ -9,11 +9,13 @@ from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 from find_closest_properties import (
+    Coordinates,
     DEFAULT_ADDRESS,
     DEFAULT_CACHE_FILE,
     DEFAULT_EXCEL_FILE,
     DEFAULT_TOP_N,
     find_closest_properties,
+    geocode_address,
     get_json,
 )
 
@@ -171,6 +173,53 @@ PAGE = """<!doctype html>
       align-items: end;
     }
 
+    .advanced {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fafcfd;
+    }
+
+    .advanced summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #2a3a48;
+      user-select: none;
+    }
+
+    .advanced summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .advanced summary::after {
+      content: "Open";
+      float: right;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.84rem;
+    }
+
+    .advanced[open] summary::after {
+      content: "Close";
+    }
+
+    .advanced-fields {
+      padding: 0 14px 14px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .hint {
+      margin: 0;
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.4;
+    }
+
     .check {
       min-height: 46px;
       display: flex;
@@ -292,6 +341,10 @@ PAGE = """<!doctype html>
         grid-template-columns: 1fr;
       }
 
+      .advanced-fields {
+        grid-template-columns: 1fr;
+      }
+
       button {
         width: 100%;
       }
@@ -332,6 +385,24 @@ PAGE = """<!doctype html>
           </label>
           <button id="submit" type="submit">Find closest</button>
         </div>
+        <details class="advanced">
+          <summary>Advanced Search</summary>
+          <div class="advanced-fields">
+            <div>
+              <label for="bedrooms">Number of Bedrooms</label>
+              <input id="bedrooms" name="bedrooms" type="number" min="0" step="any" placeholder="e.g. 2">
+            </div>
+            <div>
+              <label for="bathrooms">Number of Bathrooms</label>
+              <input id="bathrooms" name="bathrooms" type="number" min="0" step="0.5" placeholder="e.g. 1.5">
+            </div>
+            <div>
+              <label for="max_monthly_rate">Max Monthly Rate</label>
+              <input id="max_monthly_rate" name="max_monthly_rate" type="number" min="0" step="1" placeholder="e.g. 2500">
+            </div>
+            <p class="hint">Leave any field blank to ignore that filter.</p>
+          </div>
+        </details>
         <div id="status" class="status" role="status"></div>
       </form>
     </section>
@@ -368,7 +439,10 @@ PAGE = """<!doctype html>
             <p class="meta">${escapeHtml(item.city)}, ${escapeHtml(item.state)} ${escapeHtml(item.zip_code)} · Spreadsheet row ${escapeHtml(item.source_row)}</p>
             ${item.listing_name ? `<div class="listing">${escapeHtml(item.listing_name)}</div>` : ""}
           </div>
-          <div class="distance">${Number(item.distance_miles).toFixed(2)}<span>miles straight-line</span></div>
+          <div class="distance">
+            ${Number(item.distance_miles).toFixed(2)}<span>miles straight-line</span>
+            ${item.quickest_route_miles == null ? "" : `${Number(item.quickest_route_miles).toFixed(2)}<span>miles quickest route</span>`}
+          </div>
         </article>
       `).join("");
     }
@@ -449,7 +523,10 @@ PAGE = """<!doctype html>
       const params = new URLSearchParams({
         address: formData.get("address") || "",
         top: formData.get("top") || "{{ default_top }}",
-        unique: formData.get("unique") === "on" ? "1" : "0"
+        unique: formData.get("unique") === "on" ? "1" : "0",
+        bedrooms: (formData.get("bedrooms") || "").toString().trim(),
+        bathrooms: (formData.get("bathrooms") || "").toString().trim(),
+        max_monthly_rate: (formData.get("max_monthly_rate") || "").toString().trim()
       });
 
       submitBtn.disabled = true;
@@ -479,11 +556,21 @@ PAGE = """<!doctype html>
 """
 
 
-def make_search_args(address: str, top: int, unique: bool) -> SimpleNamespace:
+def make_search_args(
+  address: str,
+  top: int,
+  unique: bool,
+  bedrooms: str | None,
+  bathrooms: str | None,
+  max_monthly_rate: str | None,
+) -> SimpleNamespace:
     return SimpleNamespace(
         address=address or DEFAULT_ADDRESS,
         excel_file=DEFAULT_EXCEL_FILE,
         top=top,
+    bedrooms=bedrooms,
+    bathrooms=bathrooms,
+    max_monthly_rate=max_monthly_rate,
         provider="nominatim",
         cache_file=DEFAULT_CACHE_FILE,
         unique_addresses=unique,
@@ -501,6 +588,8 @@ def results_to_json(results) -> list[dict[str, object]]:
             {
                 "full_address": str(row["full_address"]),
                 "distance_miles": float(row["distance_miles"]),
+                "latitude": float(row["latitude"]),
+                "longitude": float(row["longitude"]),
                 "city": str(row["City"]),
                 "state": str(row["State"]),
                 "zip_code": str(row["Zip Code"]),
@@ -509,6 +598,33 @@ def results_to_json(results) -> list[dict[str, object]]:
             }
         )
     return rows
+
+
+def quickest_route_miles(
+    origin: Coordinates,
+    destination: Coordinates,
+) -> float | None:
+    """Return quickest driving-route distance in miles using OSRM."""
+    data = get_json(
+        "http://router.project-osrm.org/route/v1/driving/"
+        f"{origin.longitude},{origin.latitude};{destination.longitude},{destination.latitude}",
+        params={
+            "overview": "false",
+            "alternatives": "false",
+            "steps": "false",
+        },
+        timeout=10,
+    )
+
+    routes = data.get("routes", [])
+    if not routes:
+        return None
+
+    distance_meters = routes[0].get("distance")
+    if distance_meters is None:
+        return None
+
+    return float(distance_meters) * 0.000621371
 
 
 def suggest_addresses(query: str) -> list[str]:
@@ -613,6 +729,9 @@ class HousingRequestHandler(BaseHTTPRequestHandler):
         params = parse_qs(query)
         address = params.get("address", [DEFAULT_ADDRESS])[0].strip() or DEFAULT_ADDRESS
         unique = params.get("unique", ["0"])[0] == "1"
+        bedrooms = params.get("bedrooms", [""])[0].strip() or None
+        bathrooms = params.get("bathrooms", [""])[0].strip() or None
+        max_monthly_rate = params.get("max_monthly_rate", [""])[0].strip() or None
 
         try:
             top = int(params.get("top", [str(DEFAULT_TOP_N)])[0])
@@ -621,11 +740,45 @@ class HousingRequestHandler(BaseHTTPRequestHandler):
         top = max(1, min(top, 25))
 
         try:
-            results = find_closest_properties(make_search_args(address, top, unique))
+            search_args = make_search_args(
+                address,
+                top,
+                unique,
+                bedrooms,
+                bathrooms,
+                max_monthly_rate,
+            )
+            results = find_closest_properties(search_args)
+            origin = geocode_address(
+                address,
+                provider=search_args.provider,
+                cache={},
+                user_agent=search_args.user_agent,
+                opencage_api_key=search_args.opencage_api_key,
+                timeout=search_args.timeout,
+            )
             payload = {
                 "address": address,
                 "results": results_to_json(results),
             }
+
+            if origin is not None:
+                for result in payload["results"]:
+                    destination = Coordinates(
+                        latitude=float(result["latitude"]),
+                        longitude=float(result["longitude"]),
+                    )
+                    try:
+                        result["quickest_route_miles"] = quickest_route_miles(
+                            origin,
+                            destination,
+                        )
+                    except Exception:
+                        result["quickest_route_miles"] = None
+            else:
+                for result in payload["results"]:
+                    result["quickest_route_miles"] = None
+
             self.send_json(payload)
         except Exception as error:
             self.send_json({"error": str(error)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)

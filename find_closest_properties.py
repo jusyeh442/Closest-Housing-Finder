@@ -34,6 +34,7 @@ import argparse
 import json
 import math
 import os
+import re
 import sys
 import time
 from dataclasses import dataclass
@@ -58,6 +59,9 @@ REQUIRED_COLUMNS = [
     "State",
     "Zip Code",
 ]
+BEDROOM_COLUMNS = ["Bedrooms", "Number of Bedrooms"]
+BATHROOM_COLUMNS = ["Bathrooms", "Number of Bathrooms"]
+MONTHLY_RATE_COLUMNS = ["Monthly Rate"]
 
 
 @dataclass(frozen=True)
@@ -104,6 +108,73 @@ def build_full_address(row: pd.Series) -> str:
 
 def clean_part(value: Any) -> str:
     return str(value).strip()
+
+
+def parse_numeric_filter(value: Any) -> float | None:
+    """Extract a numeric value from workbook/filter fields like '2', '2.0', or '2 bed'."""
+    text = clean_part(value).replace(",", "")
+    if not text:
+        return None
+
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    if not match:
+        return None
+
+    return float(match.group(0))
+
+
+def apply_optional_room_filters(
+    df: pd.DataFrame,
+    *,
+    bedrooms: Any,
+    bathrooms: Any,
+    max_monthly_rate: Any,
+) -> pd.DataFrame:
+    filtered = df
+
+    def choose_column(options: list[str], label: str) -> str:
+        for option in options:
+            if option in filtered.columns:
+                return option
+        raise ValueError(f"Missing {label} column in Excel file. Expected one of: {options}")
+
+    if bedrooms not in (None, ""):
+        bedroom_column = choose_column(BEDROOM_COLUMNS, "bedrooms")
+
+        bedrooms_value = parse_numeric_filter(bedrooms)
+        if bedrooms_value is None:
+            raise ValueError("Bedrooms filter must be a number.")
+
+        bedroom_series = filtered[bedroom_column].map(parse_numeric_filter)
+        filtered = filtered[
+            bedroom_series.notna() & ((bedroom_series - bedrooms_value).abs() < 1e-9)
+        ]
+
+    if bathrooms not in (None, ""):
+        bathroom_column = choose_column(BATHROOM_COLUMNS, "bathrooms")
+
+        bathrooms_value = parse_numeric_filter(bathrooms)
+        if bathrooms_value is None:
+            raise ValueError("Bathrooms filter must be a number.")
+
+        bathroom_series = filtered[bathroom_column].map(parse_numeric_filter)
+        filtered = filtered[
+            bathroom_series.notna() & ((bathroom_series - bathrooms_value).abs() < 1e-9)
+        ]
+
+    if max_monthly_rate not in (None, ""):
+        monthly_rate_column = choose_column(MONTHLY_RATE_COLUMNS, "monthly rate")
+
+        max_monthly_rate_value = parse_numeric_filter(max_monthly_rate)
+        if max_monthly_rate_value is None:
+            raise ValueError("Max monthly rate filter must be a number.")
+
+        monthly_rate_series = filtered[monthly_rate_column].map(parse_numeric_filter)
+        filtered = filtered[
+            monthly_rate_series.notna() & (monthly_rate_series <= max_monthly_rate_value)
+        ]
+
+    return filtered
 
 
 def load_cache(cache_path: Path) -> dict[str, Any]:
@@ -385,6 +456,14 @@ def find_closest_properties(args: argparse.Namespace) -> pd.DataFrame:
     df = load_addresses(Path(args.excel_file))
     df["full_address"] = df.apply(build_full_address, axis=1)
     df = df[df["full_address"].str.strip().ne("")].copy()
+    df = apply_optional_room_filters(
+        df,
+        bedrooms=getattr(args, "bedrooms", None),
+        bathrooms=getattr(args, "bathrooms", None),
+        max_monthly_rate=getattr(args, "max_monthly_rate", None),
+    )
+    if df.empty:
+        raise RuntimeError("No properties match the selected advanced filters.")
 
     cache_path = Path(args.cache_file)
     cache = load_cache(cache_path)
@@ -513,6 +592,21 @@ def parse_args() -> argparse.Namespace:
         help="Delay after uncached Nominatim requests.",
     )
     parser.add_argument("--timeout", type=int, default=20)
+    parser.add_argument(
+        "--bedrooms",
+        default=None,
+        help="Optional exact bedrooms filter (e.g. 2 or 2.5).",
+    )
+    parser.add_argument(
+        "--bathrooms",
+        default=None,
+        help="Optional exact bathrooms filter (e.g. 1 or 1.5).",
+    )
+    parser.add_argument(
+        "--max-monthly-rate",
+        default=None,
+        help="Optional maximum monthly rate filter (e.g. 2500).",
+    )
     parser.add_argument(
         "--opencage-api-key",
         default=os.getenv("OPENCAGE_API_KEY"),
