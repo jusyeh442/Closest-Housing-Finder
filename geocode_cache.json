@@ -1,0 +1,134 @@
+{
+  "arcgis:12524 verdugo pl, chino, ca 91710": {
+    "latitude": 34.025923634891,
+    "longitude": -117.664607091651
+  },
+  "arcgis:8315 gabrielino ct, rancho cucamonga, ca 91730": {
+    "latitude": 34.105928565425,
+    "longitude": -117.62470101827
+  },
+  "census:10930 terra vista pkwy, rancho cucamonga, ca 91730": {
+    "latitude": 34.11805043643,
+    "longitude": -117.566335951048
+  },
+  "census:2619 s sacramento pl, ontario, ca 91761": {
+    "latitude": 34.026115984993,
+    "longitude": -117.612580147388
+  },
+  "census:4085 e callaway dr, ontario, ca 91761": {
+    "latitude": 34.018326813721,
+    "longitude": -117.563439859094
+  },
+  "nominatim:10533 sunburst dr, rancho cucamonga, ca 91730": {
+    "latitude": 34.1187669,
+    "longitude": -117.5741362
+  },
+  "nominatim:10757 lemon ave, rancho cucamonga, ca 91737": {
+    "latitude": 34.1396299,
+    "longitude": -117.5703181
+  },
+  "nominatim:10918 manchester st, rancho cucamonga, ca 91701": {
+    "latitude": 34.1266753,
+    "longitude": -117.5670156
+  },
+  "nominatim:13086 loire valley dr, rancho cucamonga, ca 91739": {
+    "latitude": 34.1141241,
+    "longitude": -117.5195978
+  },
+  "nominatim:1320 n berlyn ave,, ontario, ca 91764": {
+    "latitude": 34.0818575,
+    "longitude": -117.638928
+  },
+  "nominatim:13500 victoria st, rancho cucamonga, ca 91739": {
+    "latitude": 34.1304707,
+    "longitude": -117.5101687
+  },
+  "nominatim:13840 ranchero dr, fontana, ca 92337": {
+    "latitude": 34.040042,
+    "longitude": -117.5048337
+  },
+  "nominatim:14228 ranchero dr, fontana, ca 92337": {
+    "latitude": 34.0401146,
+    "longitude": -117.4958595
+  },
+  "nominatim:16318 gregorio dr, hacienda heights, ca, 91745, usa": {
+    "latitude": 33.988234,
+    "longitude": -117.9552063
+  },
+  "nominatim:16318 gregorio drive": {
+    "latitude": 33.988234,
+    "longitude": -117.9552063
+  },
+  "nominatim:16318 gregorio drive hacienda heights, ca 91745": {
+    "latitude": 33.988234,
+    "longitude": -117.9552063
+  },
+  "nominatim:1860 e g st, ontario, ca 91764": {
+    "latitude": 34.0692779,
+    "longitude": -117.6122475
+  },
+  "nominatim:2003 e banyan st, ontario, ca 91761": {
+    "latitude": 34.0283992,
+    "longitude": -117.6081369
+  },
+  "nominatim:2020 s hacienda blvd hacienda heights, ca 91745": {
+    "latitude": 33.9969967,
+    "longitude": -117.9675974
+  },
+  "nominatim:2290 willow ave, upland, ca 91784": {
+    "latitude": 34.1465802,
+    "longitude": -117.6718552
+  },
+  "nominatim:2980 s euclid ave, chino, ca 91762": {
+    "latitude": 34.0194887,
+    "longitude": -117.6509564
+  },
+  "nominatim:4186 val verde ave, chino hills, ca 91709": {
+    "latitude": 33.9687341,
+    "longitude": -117.7131881
+  },
+  "nominatim:4445 magnolia ave, riverside, ca 92501": {
+    "latitude": 33.9762574,
+    "longitude": -117.3783806
+  },
+  "nominatim:4638 helen bell wy, jurupa valley, ca 91752": {
+    "latitude": 34.0027904,
+    "longitude": -117.5253635
+  },
+  "nominatim:4972 clover pl, rancho cucamonga, ca 91737": {
+    "latitude": 34.1643203,
+    "longitude": -117.5736889
+  },
+  "nominatim:5451 walnut ave, chino, ca 91710": {
+    "latitude": 34.0257034,
+    "longitude": -117.6850142
+  },
+  "nominatim:6071 muscat pl, rancho cucamonga, ca 91737": {
+    "latitude": 34.1431449,
+    "longitude": -117.571594
+  },
+  "nominatim:6213 granby ave, rancho cucamonga, ca 91737": {
+    "latitude": 34.1414153,
+    "longitude": -117.5853514
+  },
+  "nominatim:6736 aster ct, chino, ca 91710": {
+    "latitude": 34.0296362,
+    "longitude": -117.6580818
+  },
+  "nominatim:6844 shelton ct, rancho cucamonga, ca 91701": {
+    "latitude": 34.1297513,
+    "longitude": -117.5592914
+  },
+  "nominatim:71 lucinda dr, upland, ca 91786": {
+    "latitude": 34.1016045,
+    "longitude": -117.6307258
+  },
+  "nominatim:7244 travis pl, rancho cucamonga, ca 91739": {
+    "latitude": 34.1222408,
+    "longitude": -117.5277023
+  },
+  "nominatim:77": {
+    "latitude": 41.6440533,
+    "longitude": -102.3392806
+  }
+}
